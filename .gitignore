@@ -1,0 +1,6 @@
+# created by virtualenv automatically
+
+# .gitignore - файл, сообщающий гиту какие файлы и директории не отслеживать
+
+*
+config.py
