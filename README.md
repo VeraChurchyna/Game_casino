@@ -33,6 +33,7 @@ git clone https://github.com/VeraChurchyna/Game_casino.git
 python3.11 -m venv env
 source env/bin/activate
 pip install -r requirements.txt
+```
 
 3. Создание файла config.py:
 
