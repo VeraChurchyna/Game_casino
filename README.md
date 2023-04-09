@@ -34,5 +34,6 @@ python3.11 -m venv env
 source env/bin/activate
 pip install -r requirements.txt
 
+3. Создание файла config.py:
 
-
+По примеру config.py.example создать файл с токеном телеграм бота
