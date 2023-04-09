@@ -13,7 +13,20 @@
  - `/cancel` - выход из режима игры.
  - `/stat` - просмотреть статистику.
 
+# Установка
 
+1. Клонирование репозитория:
+
+```bash
+git clone https://github.com/VeraChurchyna/Game_casino.git
+```
+
+2. Создание виртуального окружения и установка зависимостей:
+
+```bash
+python3.11 -m venv env
+source env/bin/activate
+pip install -r requirements.txt
 
 
 
