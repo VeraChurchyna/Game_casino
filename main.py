@@ -22,6 +22,9 @@ dp: Dispatcher = Dispatcher()
 # Количество попыток, доступных пользователю в игре
 ATTEMPTS: int = 5
 
+money: int = 100
+bet:int = money//10
+
 # словарь с данными пользователей
 users: dict = {}
 
@@ -49,10 +52,12 @@ keyboard_yes_no: ReplyKeyboardMarkup = ReplyKeyboardMarkup(
 # Создаем объекты кнопок Легкий и Сложнее
 button_easy: KeyboardButton = KeyboardButton(text='Легкий!')
 button_hard: KeyboardButton = KeyboardButton(text='Сложнее')
+button_fun: KeyboardButton = KeyboardButton(text='Веселый)')
 
-# Создаем объект клавиатуры, добавляя в него кнопки Легкий и Сложнее
+
+# Создаем объект клавиатуры, добавляя в него кнопки Легкий и Сложнее и Веселый
 keyboard_easy_hard: ReplyKeyboardMarkup = ReplyKeyboardMarkup(
-    keyboard=[[button_easy, button_hard]],
+    keyboard=[[button_easy, button_hard,button_fun]],
     resize_keyboard=True,
     one_time_keyboard=True)
 
@@ -63,6 +68,8 @@ button_black: InlineKeyboardButton = InlineKeyboardButton(text='ЧЕРНЫЙ ⬛
 
 button_green: InlineKeyboardButton = InlineKeyboardButton(text='ЗЕЛЕНЫЙ 🟩', callback_data='зеленый')
 
+button_bet: InlineKeyboardButton = InlineKeyboardButton(text=(f'Сделайте ставку {bet} р.💵'), callback_data='Ставка')
+
 # Создаем объект инлайн клавиатуры красный-черный
 keyboard_color: InlineKeyboardMarkup = InlineKeyboardMarkup(
     inline_keyboard=[[button_red, button_black]],
@@ -72,6 +79,9 @@ keyboard_color: InlineKeyboardMarkup = InlineKeyboardMarkup(
 keyboard_green: InlineKeyboardMarkup = InlineKeyboardMarkup(
     inline_keyboard=[[button_green]], resize_keyboard=True)
 
+# Создаем объект инлайн клавиатуры Ставка
+keyboard_bet: InlineKeyboardMarkup = InlineKeyboardMarkup(
+    inline_keyboard=[[button_bet]], resize_keyboard=True)
 
 # Этот хэндлер будет срабатывать на команду "/start"
 # и отправлять в чат клавиатуру
@@ -92,6 +102,8 @@ async def process_start_command(message: Message):
                                        'secret_number': None,
                                        'secret_color': None,
                                        'attempts': None,
+                                       'layer': None,
+                                       'money': None,
                                        'user_number': None,
                                        'user_color': None,
                                        'total_games': 0,
@@ -108,7 +120,9 @@ async def process_help_command(message: Message):
                           f'или 0 (ZERO)\n'
                           f'а вам нужно сделать выбор\n\n'
                           f'У вас есть {ATTEMPTS} попыток на легком уровне\n'
-                          f'и {ATTEMPTS - 2} попытки на уровне сложнее\n\n'
+                          f'и {ATTEMPTS - 2} попытки на уровне сложнее.\n\n'
+                          f'На ВЕСЕЛОМ уровне всего {ATTEMPTS - 3} попытки, но\n'
+                          f'есть возможность выйграть ДЕНЬГИ 💵💵💵'
                           f'Доступные команды:\n'
                           f'/start - начать игру \n'
                           f'/help - правила игры и список команд\n'
@@ -120,8 +134,9 @@ async def process_help_command(message: Message):
 # Этот хэндлер будет срабатывать на команду "/stat"
 @dp.message(Command(commands='stat'))
 async def process_stat_command(message: Message):
-    await message.answer((f'Всего игр сыграно: {users[message.chat.id]["total_games"]} \n'
-                          f'Игр выиграно: {users[message.chat.id]["wins"]}'))
+    await message.answer(f'Всего игр сыграно: {users[message.chat.id]["total_games"]}\n'
+                          f'Игр выиграно: {users[message.chat.id]["wins"]}\n'
+                          f'У Вас денег: {users[message.chat.id]["money"]} р.')
 
 
 # Этот хэндлер будет срабатывать на команду "/cancel"
@@ -143,8 +158,11 @@ async def process_cancel_command(message: Message):
 async def process_positive_answer(message: Message):
     if not users[message.from_user.id]['in_game']:
         await message.answer((f'Выберите уровень сложности\n\n'
-                              f'на легком уровне - {ATTEMPTS} попыток\n'
-                              f'на уровне сложнее {ATTEMPTS - 2} попытки'),
+                              f'на ЛЕГКОМ уровне - {ATTEMPTS} попыток\n'
+                              f'на уровне СЛОЖНЕЕ {ATTEMPTS - 2} попытки\n'
+                              f'на ВЕСЕЛОМ уровне на старте я дарю вам {money} р. 💵💵💵, \n'
+                              f'а у вас {ATTEMPTS - 3} попытки и возможность сделать ставку {bet} р. 💵\n'
+                              f'если победите - УДВОИТЕ ставку!!! 🤑'),
                              reply_markup=keyboard_easy_hard)
         await message.answer(text='👇')
     else:
@@ -154,21 +172,35 @@ async def process_positive_answer(message: Message):
 
 
 # Этот хэндлер будет срабатывать на выбор уровня сложности
-@dp.message(Text(text=['Легкий!', 'Сложнее'], ignore_case=True))  # игнор регистра True
+@dp.message(Text(text=['Легкий!', 'Сложнее', 'Веселый)'], ignore_case=True))  # игнор регистра True
 async def process_easy_hard(message: Message):
-    if message.text == 'Легкий!':
-        users[message.from_user.id]['attempts'] = ATTEMPTS
-        txt = 'попыток'
-    if message.text == 'Сложнее':
-        users[message.from_user.id]['attempts'] = ATTEMPTS - 2
-        txt = 'попытки'
+    users[message.from_user.id]['layer'] = message.text
     await message.answer(f'Ура!\n\nЯ загадал число от 1 до 18,\n'
                          f'и цвет "ЧЕРНЫЙ ⬛️", "КРАСНЫЙ 🟥" \n\n'
                          f'или \n\n'
-                         f'0️⃣ (ZERO) - всегда "ЗЕЛЕНЫЙ 🟩 "😜 \n\n'
-                         f'У вас {users[message.from_user.id]["attempts"]} {txt}\n'
-                         f'попробуй угадать!\n\n'
-                         f'Жду число!!! 👇')
+                         f'0️⃣ (ZERO) - всегда "ЗЕЛЕНЫЙ 🟩 "😜 \n\n')
+    if message.text == 'Легкий!':
+        users[message.from_user.id]['attempts'] = ATTEMPTS
+        txt = 'попыток'
+        await message.answer(f'У вас {users[message.from_user.id]["attempts"]} {txt}\n'
+                             f'попробуй угадать!\n\n'
+                             f'Жду число!!! 👇')
+    if message.text == 'Сложнее':
+        users[message.from_user.id]['attempts'] = ATTEMPTS - 2
+        txt = 'попытки'
+        await message.answer(f'У вас {users[message.from_user.id]["attempts"]} {txt}\n'
+                             f'попробуй угадать!\n\n'
+                             f'Жду число!!! 👇')
+    if message.text == 'Веселый)':
+        users[message.from_user.id]['attempts'] = ATTEMPTS - 3
+        if users[message.from_user.id]['money'] == None:
+            users[message.from_user.id]['money'] = money
+        txt = 'попытки'
+        await message.answer((f'У Вас {users[message.from_user.id]["money"]} р. 💵💵💵\n'
+                             f'Вы делаете ставку в {bet} р. 💵 и если побеждаете - \n'
+                             f'УДВАИВАЕТЕ ставку!!! 🤑🤑🤑\n\n'),reply_markup=keyboard_bet)
+        print(message)
+
     users[message.from_user.id]['in_game'] = True
     users[message.from_user.id]['secret_number'] = get_random_number()
     if users[message.from_user.id]['secret_number'] == 0:
@@ -177,6 +209,21 @@ async def process_easy_hard(message: Message):
         users[message.from_user.id]['secret_color'] = get_random_color()
     print(users)
 
+@dp.callback_query(Text(text=['Ставка']))
+async def process_bet(callback:CallbackQuery):
+    print('Выполняется process_bet')
+    print(callback)
+    if users[callback.message.chat.id]['money'] >= bet:
+        users[callback.message.chat.id]['money'] -= bet
+        print('Ставка принята')
+        await callback.message.answer('Ставка принята')
+        await callback.message.answer(f'У вас {users[callback.message.chat.id]["attempts"]} попытки\n'
+                                      f'попробуй угадать!\n\n'
+                                      f'Жду число!!! 👇')
+    else:
+        await callback.message.answer((f'Извините, у Вас недостаточно денег(\n'
+                              f'Перезапустите бот, нажав /start или\n'
+                             f'выберите другой уровень игры'), reply_markup=keyboard_easy_hard)
 
 # Этот хэндлер будет срабатывать на отказ пользователя сыграть в игру
 @dp.message(Text(text=['Нет', 'Не хочу', 'Не', 'Не буду'], ignore_case=True))  # игнор регистра True
@@ -225,11 +272,17 @@ async def process_color_answer(callback: CallbackQuery):
                 users[callback.message.chat.id]['in_game'] = False
                 users[callback.message.chat.id]['total_games'] += 1
                 users[callback.message.chat.id]['wins'] += 1
-                text = ('Ура!!! Вы ВЫЙГРАЛИ! 😍\n\n'
-                        'Может, сыграем еще? 👇')
-                sticker = 'CAACAgIAAxkBAAMSZChPJFJ_gpcIwkkvHkSuvSlw5NUAAgUBAAJhg2MGwbf5qhfi9HEvBA'
-                await callback.message.answer(text=text, reply_markup=keyboard_yes_no)
-                await bot.send_sticker(callback.message.chat.id, sticker=sticker)
+                if users[callback.message.chat.id]['layer'] == 'Веселый)':
+                    users[callback.message.chat.id]['money'] += bet*3
+                    await callback.message.answer(text=(f'Ура!!! Вы ВЫЙГРАЛИ {bet*2} р.! 😍\n\n'
+                                                        f'Может, сыграем еще? 👇'),reply_markup=keyboard_yes_no)
+                    await callback.message.answer(text= '🤑')
+                else:
+                    text = ('Ура!!! Вы ВЫЙГРАЛИ! 😍\n\n'
+                            'Может, сыграем еще? 👇')
+                    sticker = 'CAACAgIAAxkBAAMSZChPJFJ_gpcIwkkvHkSuvSlw5NUAAgUBAAJhg2MGwbf5qhfi9HEvBA'
+                    await callback.message.answer(text=text, reply_markup=keyboard_yes_no)
+                    await bot.send_sticker(callback.message.chat.id, sticker=sticker)
                 # отправляем статистику
                 await process_stat_command(callback.message)
             elif int(users[callback.message.chat.id]['user_number']) > users[callback.message.chat.id]['secret_number']:
@@ -268,6 +321,8 @@ async def process_color_answer(callback: CallbackQuery):
         if users[callback.message.chat.id]['attempts'] == 0:
             users[callback.message.chat.id]['in_game'] = False
             users[callback.message.chat.id]['total_games'] += 1
+            if users[callback.message.chat.id]['layer'] == 'Веселый)':
+                await callback.message.answer('Увы, ставка не сыграла 😢')
             text = (f'К сожалению, у вас больше не осталось попыток. 😢\n'
                     f'Вы проиграли( \n\n'
                     f'Мой вариант был {users[callback.message.chat.id]["secret_number"]} '
